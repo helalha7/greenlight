@@ -6,10 +6,40 @@ import (
 	"time"
 
 	"github.com/helalha7/greenlight.git/internal/data"
+	"github.com/helalha7/greenlight.git/internal/validator"
 )
 
 func (app *application) createMovieHanlder(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "create a new movie")
+
+	var input struct {
+		Title   string   `json:"title"`
+		Year    int      `json:"year"`
+		Runtime int      `json:"runtime"`
+		Genres  []string `json:"genres"`
+	}
+
+	if err := app.readJSON(w, r, &input); err != nil {
+		app.errorResponse(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	movie := &data.Movie{
+		Title:   input.Title,
+		Year:    input.Year,
+		Runtime: input.Runtime,
+		Genres:  input.Genres,
+	}
+
+	v := validator.New()
+	data.ValidateMovie(v, movie)
+
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	fmt.Fprintln(w, input)
+
 }
 
 func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request) {
