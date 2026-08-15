@@ -1,12 +1,17 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 )
 
 // Declare a string containing the application version number. Later in the book we'll
@@ -22,6 +27,9 @@ const version = "1.0.0"
 type config struct {
 	port int
 	env  string
+	db   struct {
+		dsn string
+	}
 }
 
 // Define an application struct to hold the dependencies for our HTTP handlers, helpers,
@@ -35,6 +43,12 @@ type application struct {
 func main() {
 	// Declare an instance of the config struct.
 	var cfg config
+	if err := godotenv.Load(); err != nil {
+		log.Println(err)
+	}
+
+	dsn := os.Getenv("DB_DSN")
+	cfg.db.dsn = dsn
 
 	// Read the value of the port and env command-line flags into the config struct. We
 	// default to using the port number 4000 and the environment "development" if no
@@ -46,6 +60,16 @@ func main() {
 	// Initialize a new structured logger which writes log entries to the standard out
 	// stream.
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	db, err := openDB(cfg)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+
+	defer db.Close()
+
+	logger.Info("database connection pool established")
 
 	// Declare an instance of the application struct, containing the config struct and
 	// the logger.
@@ -68,7 +92,23 @@ func main() {
 
 	// Start the HTTP server.
 	logger.Info("starting server", "addr", srv.Addr, "env", cfg.env)
-	err := srv.ListenAndServe()
+	err = srv.ListenAndServe()
 	logger.Error(err.Error())
 	os.Exit(1)
+}
+
+func openDB(cfg config) (*sql.DB, error) {
+	db, err := sql.Open("mysql", cfg.db.dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	err = db.Ping()
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	return db, nil
+
 }

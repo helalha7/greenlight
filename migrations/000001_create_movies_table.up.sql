@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS movies (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    title TEXT NOT NULL, 
+    year INT NOT NULL, 
+    runtime INT NOT NULL,
+    genres JSON NOT NULL,
+    version INT NOT NULL DEFAULT 1
+);
