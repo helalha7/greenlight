@@ -11,6 +11,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/helalha7/greenlight.git/internal/data"
 	"github.com/joho/godotenv"
 )
 
@@ -38,6 +39,7 @@ type config struct {
 type application struct {
 	config config
 	logger *slog.Logger
+	models data.Models
 }
 
 func main() {
@@ -76,6 +78,7 @@ func main() {
 	app := &application{
 		config: cfg,
 		logger: logger,
+		models: data.NewModels(db),
 	}
 
 	// Declare an HTTP server which listens on the port provided in the config struct,

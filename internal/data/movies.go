@@ -1,6 +1,9 @@
 package data
 
 import (
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/helalha7/greenlight.git/internal/validator"
@@ -28,4 +31,77 @@ func ValidateMovie(v *validator.Validator, movie *Movie) {
 	v.Check(len(movie.Genres) >= 1, "genres", "must contain at least 1 genre")
 	v.Check(len(movie.Genres) <= 5, "genres", "must not contain more than 5 genres")
 	v.Check(validator.Unique(movie.Genres), "genres", "must not contain duplicate values")
+}
+
+type MovieModel struct {
+	DB *sql.DB
+}
+
+func (m MovieModel) Insert(movie *Movie) error {
+	query := `
+		INSERT INTO movies (title, year, runtime, genres)
+		VALUES (?, ?, ?, ?)
+	`
+
+	genres, err := json.Marshal(movie.Genres)
+	if err != nil {
+		return err
+	}
+
+	args := []any{movie.Title, movie.Year, movie.Runtime, genres}
+
+	res, err := m.DB.Exec(query, args...)
+	if err != nil {
+		return err
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return err
+	}
+
+	movie.ID = int(id)
+	return nil
+}
+
+func (m MovieModel) Get(id int) (*Movie, error) {
+	query := `
+		SELECT id, create_at, title, year, runtime, genres, version
+		FROM movies
+		WHERE id = ?
+	`
+	var genres []byte
+	movie := &Movie{}
+
+	err := m.DB.QueryRow(query, id).Scan(
+		&movie.ID,
+		&movie.CreatedAt,
+		&movie.Title,
+		&movie.Year,
+		&movie.Runtime,
+		&genres,
+		&movie.Version,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	if err := json.Unmarshal(genres, &movie.Genres); err != nil {
+		return nil, err
+	}
+
+	return movie, nil
+}
+
+func (m MovieModel) Update(movie *Movie) error {
+	return nil
+}
+
+func (m MovieModel) Delete(id int) error {
+	return nil
 }
