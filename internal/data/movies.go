@@ -101,21 +101,31 @@ func (m MovieModel) Get(id int) (*Movie, error) {
 func (m MovieModel) Update(movie *Movie) error {
 	query := `
 		UPDATE movies
-		SET title=?, year=?, runtime=?, genres=?, version=version+1
-		WHERE id=?
+		SET title = ?, year = ?, runtime = ?, genres = ?, version = version + 1
+		WHERE id = ? AND version = ?
 	`
 	genres, err := json.Marshal(movie.Genres)
 	if err != nil {
 		return err
 	}
 
-	args := []any{movie.Title, movie.Year, movie.Runtime, genres, movie.ID}
+	args := []any{movie.Title, movie.Year, movie.Runtime, genres, movie.ID, movie.Version}
 
-	_, err = m.DB.Exec(query, args...)
+	res, err := m.DB.Exec(query, args...)
 	if err != nil {
 		return err
 	}
 
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrEditConflict
+	}
+
+	movie.Version++
 	return nil
 }
 
@@ -140,4 +150,51 @@ func (m MovieModel) Delete(id int) error {
 	}
 
 	return nil
+}
+
+func (m MovieModel) GetAll() ([]*Movie, error) {
+	query := `
+		SELECT id, create_at, title, year, runtime, genres, version
+		FROM movies
+		ORDER BY id
+	`
+
+	rows, err := m.DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	movies := []*Movie{}
+
+	for rows.Next() {
+		var movie Movie
+		var genres []byte
+
+		err := rows.Scan(
+			&movie.ID,
+			&movie.CreatedAt,
+			&movie.Title,
+			&movie.Year,
+			&movie.Runtime,
+			&genres,
+			&movie.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := json.Unmarshal(genres, &movie.Genres); err != nil {
+			return nil, err
+		}
+
+		movies = append(movies, &movie)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return movies, nil
 }
