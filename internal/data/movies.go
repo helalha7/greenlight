@@ -99,9 +99,45 @@ func (m MovieModel) Get(id int) (*Movie, error) {
 }
 
 func (m MovieModel) Update(movie *Movie) error {
+	query := `
+		UPDATE movies
+		SET title=?, year=?, runtime=?, genres=?, version=version+1
+		WHERE id=?
+	`
+	genres, err := json.Marshal(movie.Genres)
+	if err != nil {
+		return err
+	}
+
+	args := []any{movie.Title, movie.Year, movie.Runtime, genres, movie.ID}
+
+	_, err = m.DB.Exec(query, args...)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (m MovieModel) Delete(id int) error {
+	query := `
+		DELETE FROM movies
+		WHERE id = ?
+	`
+
+	res, err := m.DB.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
 	return nil
 }
