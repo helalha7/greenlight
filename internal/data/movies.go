@@ -152,7 +152,7 @@ func (m MovieModel) Delete(id int) error {
 	return nil
 }
 
-func (m MovieModel) GetAll() ([]*Movie, error) {
+func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, error) {
 	query := `
 		SELECT id, create_at, title, year, runtime, genres, version
 		FROM movies
