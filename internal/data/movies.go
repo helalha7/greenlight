@@ -152,27 +152,30 @@ func (m MovieModel) Delete(id int) error {
 	return nil
 }
 
-func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, error) {
+func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, MetaData, error) {
 	query := `
-		SELECT id, create_at, title, year, runtime, genres, version
+		SELECT COUNT(*) OVER(), id, create_at, title, year, runtime, genres, version
 		FROM movies
 		ORDER BY id
+		LIMIT ? OFFSET ?
 	`
 
-	rows, err := m.DB.Query(query)
+	args := []any{filters.Limit(), filters.Offset()}
+	rows, err := m.DB.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, MetaData{}, err
 	}
 
 	defer rows.Close()
 
+	var totalRecords int
 	movies := []*Movie{}
-
 	for rows.Next() {
 		var movie Movie
 		var genres []byte
 
 		err := rows.Scan(
+			&totalRecords,
 			&movie.ID,
 			&movie.CreatedAt,
 			&movie.Title,
@@ -182,19 +185,21 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 			&movie.Version,
 		)
 		if err != nil {
-			return nil, err
+			return nil, MetaData{}, err
 		}
 
 		if err := json.Unmarshal(genres, &movie.Genres); err != nil {
-			return nil, err
+			return nil, MetaData{}, err
 		}
 
 		movies = append(movies, &movie)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, MetaData{}, err
 	}
 
-	return movies, nil
+	metaData := calculateMetaData(totalRecords, filters.Page, filters.PageSize)
+
+	return movies, metaData, nil
 }
