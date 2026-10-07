@@ -184,3 +184,36 @@ func (m UserModel) GetByEmail(email string) (*User, error) {
 	return &user, nil
 
 }
+
+func (m UserModel) Update(user *User) error {
+	query := `
+		UPDATE users
+		SET name = ?, email = ?, password_hash = ?, activated = ?, version = version + 1
+		WHERE id = ? AND version = ?
+	`
+
+	args := []any{user.Name, user.Email, user.Password.hash, user.Activated, user.ID, user.Version}
+	var mySQLError *mysql.MySQLError
+	res, err := m.DB.Exec(query, args...)
+	if err != nil {
+		switch {
+		case errors.As(err, &mySQLError) && mySQLError.Number == 1062:
+			return ErrDuplicateEmail
+		default:
+			return err
+		}
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrEditConflict
+	}
+
+	user.Version++
+
+	return nil
+}

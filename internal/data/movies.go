@@ -59,7 +59,14 @@ func (m MovieModel) Insert(movie *Movie) error {
 		return err
 	}
 
-	movie.ID = int(id)
+	createdMovie, err := m.Get(int(id))
+	if err != nil {
+		return err
+	}
+	movie.ID = createdMovie.ID
+	movie.CreatedAt = createdMovie.CreatedAt
+	movie.Version = createdMovie.Version
+
 	return nil
 }
 
@@ -69,9 +76,9 @@ func (m MovieModel) Get(id int) (*Movie, error) {
 		FROM movies
 		WHERE id = ?
 	`
+
 	var genres []byte
 	movie := &Movie{}
-
 	err := m.DB.QueryRow(query, id).Scan(
 		&movie.ID,
 		&movie.CreatedAt,
@@ -103,13 +110,13 @@ func (m MovieModel) Update(movie *Movie) error {
 		SET title = ?, year = ?, runtime = ?, genres = ?, version = version + 1
 		WHERE id = ? AND version = ?
 	`
+
 	genres, err := json.Marshal(movie.Genres)
 	if err != nil {
 		return err
 	}
 
 	args := []any{movie.Title, movie.Year, movie.Runtime, genres, movie.ID, movie.Version}
-
 	res, err := m.DB.Exec(query, args...)
 	if err != nil {
 		return err
