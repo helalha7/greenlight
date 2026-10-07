@@ -49,6 +49,7 @@ func (app *application) createMovieHanlder(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
+
 }
 
 func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request) {

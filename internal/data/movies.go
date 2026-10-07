@@ -49,7 +49,6 @@ func (m MovieModel) Insert(movie *Movie) error {
 	}
 
 	args := []any{movie.Title, movie.Year, movie.Runtime, genres}
-
 	res, err := m.DB.Exec(query, args...)
 	if err != nil {
 		return err

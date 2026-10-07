@@ -15,5 +15,7 @@ func (app *application) routes() http.Handler {
 	mux.HandleFunc("DELETE /v1/movies/{id}", app.deleteMovieHandler)
 	mux.HandleFunc("GET /v1/movies", app.listAllMoviesHandler)
 
+	mux.HandleFunc("POST /v1/users", app.createUserHandler)
+
 	return mux
 }
